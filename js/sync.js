@@ -35,6 +35,38 @@ const RideSync = (() => {
     await client.auth.signOut();
   }
 
+  // Lets a user recover a sign-in link that was opened in a different app's
+  // in-app browser (e.g. Gmail), whose session doesn't carry over. Pasting the
+  // link back here verifies it in this same browser tab instead.
+  async function verifyPastedLink(text) {
+    const trimmed = (text || '').trim();
+    if (!trimmed) throw new Error('Paste the sign-in link first.');
+
+    let url;
+    try {
+      url = new URL(trimmed);
+    } catch (e) {
+      throw new Error('That doesn\'t look like a full link — copy the whole URL.');
+    }
+
+    const code = url.searchParams.get('code');
+    if (code) {
+      const { error } = await client.auth.exchangeCodeForSession(code);
+      if (error) throw error;
+      return;
+    }
+
+    const tokenHash = url.searchParams.get('token_hash') || url.searchParams.get('token');
+    const type = url.searchParams.get('type') || 'email';
+    if (tokenHash) {
+      const { error } = await client.auth.verifyOtp({ token_hash: tokenHash, type });
+      if (error) throw error;
+      return;
+    }
+
+    throw new Error('Could not find a sign-in code in that link.');
+  }
+
   function toRemote(ride) {
     return {
       id: ride.id,
@@ -105,5 +137,5 @@ const RideSync = (() => {
     return { pushed, pulled };
   }
 
-  return { onAuthChange, getSession, signInWithEmail, signOut, syncNow, deleteRemote };
+  return { onAuthChange, getSession, signInWithEmail, signOut, syncNow, deleteRemote, verifyPastedLink };
 })();

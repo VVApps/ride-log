@@ -549,8 +549,22 @@
     try {
       await RideSync.signInWithEmail(email);
       msg.textContent = 'Check your email for a sign-in link.';
+      $('#pasteLinkSection').style.display = '';
     } catch (e) {
       msg.textContent = 'Could not send link: ' + e.message;
+    }
+  });
+
+  $('#verifyPastedLinkBtn').addEventListener('click', async () => {
+    const msg = $('#authStatusMsg');
+    msg.style.display = '';
+    msg.textContent = 'Verifying…';
+    try {
+      await RideSync.verifyPastedLink($('#pasteLinkInput').value);
+      $('#pasteLinkInput').value = '';
+      msg.textContent = 'Signed in!';
+    } catch (e) {
+      msg.textContent = 'Could not verify that link: ' + e.message;
     }
   });
 
