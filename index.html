@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Ride Log</title>
+<meta name="theme-color" content="#2f90ac">
+<meta name="description" content="Offline ride tracking with GPS route, distance, duration and notes.">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ride Log">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- RIDE SCREEN -->
+  <section id="screen-ride" class="screen active">
+    <div class="topbar"><h1>Ride Log</h1></div>
+    <div id="gpsBanner" class="permission-banner" style="display:none;"></div>
+
+    <div id="rideIdle">
+      <div class="start-wrap">
+        <button id="startRideBtn" class="start-btn">Start<br>Ride</button>
+      </div>
+      <p class="gps-note">Tap to start GPS tracking. Keep the screen on or app running in the background for best accuracy.</p>
+
+      <div id="lastRideCard" class="last-ride-card" style="display:none;">
+        <div id="lastRideMap" class="last-ride-map"></div>
+        <div class="last-ride-overlay"></div>
+        <div class="last-ride-attrib">Map © OpenStreetMap</div>
+        <div class="last-ride-info">
+          <div class="last-ride-label">Last Ride</div>
+          <div class="last-ride-date" id="lastRideDate"></div>
+          <div class="last-ride-stats-row">
+            <div class="lr-stat">
+              <div class="lr-value" id="lastRideDistance">--</div>
+              <div class="lr-label">Distance</div>
+            </div>
+            <div class="lr-stat">
+              <div class="lr-value" id="lastRideDuration">--</div>
+              <div class="lr-label">Duration</div>
+            </div>
+            <div class="lr-stat">
+              <div class="lr-value" id="lastRideSpeed">--</div>
+              <div class="lr-label">Avg Speed</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="lastRideEmpty" class="empty-state" style="display:none;padding:34px 20px;">
+        <p>Your last ride's map and stats will show up here.</p>
+      </div>
+    </div>
+
+    <div id="rideActive" style="display:none;">
+      <div class="card status-card">
+        <div class="status-row">
+          <div class="status-left">
+            <span class="live-dot pulsing"></span>
+            <span class="status-text">Tracking Live</span>
+            <span class="status-sub" id="liveAgo">—</span>
+          </div>
+          <button id="stopPillBtn" class="pill-btn danger">Stop</button>
+        </div>
+        <div class="callout">
+          <div class="big" id="liveDuration">0m 00s</div>
+          <div class="sub" id="liveAccuracy">Acquiring GPS…</div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="value" id="liveDistance">0.00 km</div>
+          <div class="label">Distance</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="liveSpeed">0.0 km/h</div>
+          <div class="label">Avg Speed</div>
+        </div>
+        <div class="stat-card">
+          <div class="value" id="livePoints">0</div>
+          <div class="label">GPS Points</div>
+        </div>
+      </div>
+
+      <button id="endRideBtn" class="end-btn">End Ride</button>
+    </div>
+  </section>
+
+  <!-- NOTES SCREEN -->
+  <section id="screen-notes" class="screen">
+    <div class="topbar"><h1>Ride Complete</h1></div>
+    <div class="card">
+      <div class="field-title">Rating</div>
+      <div class="rating-row">
+        <button class="star-btn" data-star="1">☆</button>
+        <button class="star-btn" data-star="2">☆</button>
+        <button class="star-btn" data-star="3">☆</button>
+        <button class="star-btn" data-star="4">☆</button>
+        <button class="star-btn" data-star="5">☆</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="field-title">Notes</div>
+      <textarea id="notesText" class="notes-input" placeholder="Road conditions, what went well, what to improve…"></textarea>
+    </div>
+    <button id="saveRideBtn" class="save-btn">Save Ride</button>
+    <button id="discardRideBtn" class="pill-btn" style="width:100%;margin-top:10px;background:transparent;box-shadow:none;color:#8b93a1;">Discard ride</button>
+  </section>
+
+  <!-- HISTORY SCREEN -->
+  <section id="screen-history" class="screen">
+    <div class="topbar">
+      <h1>History</h1>
+      <button id="exportBtn" class="pill-btn">Export CSV</button>
+    </div>
+    <div id="historyEmpty" class="empty-state" style="display:none;">
+      <div class="big-icon">🏍️</div>
+      <p>No rides yet. Start your first ride from the Ride tab.</p>
+    </div>
+    <div id="historyList" class="timeline-list"></div>
+  </section>
+
+  <!-- DETAIL SCREEN -->
+  <section id="screen-detail" class="screen">
+    <div class="back-row">
+      <button id="detailBackBtn" class="back-btn">←</button>
+      <h1 id="detailDate" style="font-size:17px;"></h1>
+    </div>
+    <div id="rideMap"></div>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="value" id="detailDistance">—</div>
+        <div class="label">Distance</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="detailDuration">—</div>
+        <div class="label">Duration</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="detailRating" style="font-size:15px;color:#d1a53d;">—</div>
+        <div class="label">Rating</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="field-title">Notes</div>
+      <div id="detailNotes" class="notes-box"></div>
+    </div>
+    <div class="detail-actions">
+      <button id="deleteRideBtn" class="pill-btn danger">Delete Ride</button>
+    </div>
+  </section>
+
+  <!-- STATS SCREEN -->
+  <section id="screen-stats" class="screen">
+    <div class="topbar"><h1>Stats</h1></div>
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="value" id="statTotalKm">0.00</div>
+        <div class="label">Total km</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="statTotalRides">0</div>
+        <div class="label">Total rides</div>
+      </div>
+      <div class="stat-card">
+        <div class="value" id="statTotalTime">0m</div>
+        <div class="label">Total time</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="field-title">Km per month</div>
+      <div class="chart-wrap">
+        <canvas id="monthChart"></canvas>
+        <div id="statsChartEmpty" class="empty-state" style="display:none;padding:30px 10px;">No ride data yet.</div>
+      </div>
+    </div>
+    <button id="exportBtnStats" class="export-btn">Export All Data (CSV)</button>
+  </section>
+
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-nav="ride">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"></circle><circle cx="18.5" cy="17.5" r="3.5"></circle><path d="M15 6a1 1 0 100-2 1 1 0 000 2zM12 17.5V14l-3-3 4-3 2 3h3"></path></svg>
+    Ride
+  </button>
+  <button class="nav-btn" data-nav="history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 3"></path></svg>
+    History
+  </button>
+  <button class="nav-btn" data-nav="stats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M12 20V4M20 20v-7"></path></svg>
+    Stats
+  </button>
+</nav>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
