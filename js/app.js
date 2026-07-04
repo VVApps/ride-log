@@ -549,7 +549,6 @@
     try {
       await RideSync.signInWithEmail(email);
       msg.textContent = 'Check your email for a sign-in link.';
-      $('#pasteLinkSection').style.display = '';
     } catch (e) {
       msg.textContent = 'Could not send link: ' + e.message;
     }
