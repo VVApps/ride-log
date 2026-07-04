@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ride-log-cache-v2';
+const CACHE_NAME = 'ride-log-cache-v3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -48,7 +48,26 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
 
-  // Leaflet tile images: cache-first but don't block install on them
+  const isSameOrigin = new URL(req.url).origin === self.location.origin;
+
+  if (isSameOrigin) {
+    // App's own files: network-first so updates are picked up as soon as
+    // you're online, falling back to cache when offline.
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Third-party CDN libs (version-pinned in the URL) and map tiles: cache-first.
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
