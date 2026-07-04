@@ -444,6 +444,18 @@ textarea.notes-input {
 }
 textarea.notes-input:focus { outline: 2px solid var(--accent); }
 
+.text-input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 13px 14px;
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--card-alt);
+  color: var(--ink);
+}
+.text-input:focus { outline: 2px solid var(--accent); }
+
 .rating-row {
   display: flex;
   gap: 10px;

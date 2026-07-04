@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ride-log-cache-v1';
+const CACHE_NAME = 'ride-log-cache-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const APP_SHELL = [
   './js/app.js',
   './js/db.js',
   './js/geo.js',
+  './js/sync.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-192.png',
@@ -14,6 +15,7 @@ const APP_SHELL = [
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
   'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js',
 ];
 
 self.addEventListener('install', (event) => {

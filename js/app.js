@@ -172,6 +172,7 @@
       durationMs: endedAt - state.startedAt,
       notes: '',
       rating: 0,
+      synced: false,
     };
     stopTracking();
     state.pendingRide = ride;
@@ -295,6 +296,9 @@
     await RideDB.addRide(state.pendingRide);
     state.pendingRide = null;
     showScreen('history');
+    RideSync.syncNow().then((result) => {
+      if (result) renderHistory();
+    });
   });
 
   $('#discardRideBtn').addEventListener('click', () => {
@@ -410,6 +414,7 @@
     if (!state.selectedRideId) return;
     if (!confirm('Delete this ride permanently?')) return;
     await RideDB.deleteRide(state.selectedRideId);
+    RideSync.deleteRemote(state.selectedRideId);
     showScreen('history');
   });
 
@@ -510,6 +515,71 @@
   $('#exportBtn').addEventListener('click', exportCsv);
   $('#exportBtnStats').addEventListener('click', exportCsv);
 
+  // ---------- Account & sync ----------
+  function renderAccountUI(session) {
+    const loggedOut = $('#accountLoggedOut');
+    const loggedIn = $('#accountLoggedIn');
+    if (session) {
+      loggedOut.style.display = 'none';
+      loggedIn.style.display = '';
+      $('#accountEmail').textContent = 'Signed in as ' + session.user.email;
+    } else {
+      loggedOut.style.display = '';
+      loggedIn.style.display = 'none';
+    }
+  }
+
+  RideSync.onAuthChange((session) => {
+    renderAccountUI(session);
+    if (session) {
+      RideSync.syncNow().then((result) => {
+        if (result && state.screen === 'history') renderHistory();
+        if (result && state.screen === 'stats') renderStats();
+        if (result && state.screen === 'ride') renderLastRide();
+      });
+    }
+  });
+
+  $('#sendMagicLinkBtn').addEventListener('click', async () => {
+    const email = $('#authEmailInput').value.trim();
+    const msg = $('#authStatusMsg');
+    if (!email) return;
+    msg.style.display = '';
+    msg.textContent = 'Sending link…';
+    try {
+      await RideSync.signInWithEmail(email);
+      msg.textContent = 'Check your email for a sign-in link.';
+    } catch (e) {
+      msg.textContent = 'Could not send link: ' + e.message;
+    }
+  });
+
+  $('#signOutBtn').addEventListener('click', async () => {
+    await RideSync.signOut();
+  });
+
+  $('#syncNowBtn').addEventListener('click', async () => {
+    const msg = $('#syncStatusMsg');
+    msg.textContent = 'Syncing…';
+    const result = await RideSync.syncNow();
+    if (result) {
+      msg.textContent = `Synced — pushed ${result.pushed}, pulled ${result.pulled}.`;
+      if (state.screen === 'history') renderHistory();
+      if (state.screen === 'stats') renderStats();
+    } else {
+      msg.textContent = 'Sync unavailable — check your connection.';
+    }
+  });
+
+  window.addEventListener('online', () => {
+    RideSync.syncNow().then((result) => {
+      if (!result) return;
+      if (state.screen === 'history') renderHistory();
+      if (state.screen === 'stats') renderStats();
+      if (state.screen === 'ride') renderLastRide();
+    });
+  });
+
   // ---------- Service worker ----------
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -579,6 +649,7 @@
       durationMs,
       notes: 'Sample ride — Kawartha Lakes to Haliburton Highlands loop via Bancroft. Delete this from the ride detail screen to start your own log.',
       rating: 5,
+      synced: true, // sample data only — never pushed to your account
     });
   }
 
@@ -587,5 +658,12 @@
     await seedSampleRideIfEmpty();
     showScreen('ride');
     renderRideScreen();
+    const session = await RideSync.getSession();
+    renderAccountUI(session);
+    if (session) {
+      RideSync.syncNow().then((result) => {
+        if (result && state.screen === 'ride') renderLastRide();
+      });
+    }
   })();
 })();
