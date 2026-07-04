@@ -21,6 +21,7 @@
     lastRideMapInstance: null,
     monthChart: null,
     pendingRating: 0,
+    wakeLock: null,
   };
 
   const MIN_POINT_INTERVAL_MS = 3000;
@@ -87,8 +88,35 @@
     );
 
     state.timerId = setInterval(renderRideScreen, 1000);
+    requestWakeLock();
     renderRideScreen();
   }
+
+  // ---------- Screen wake lock ----------
+  // Keeps the screen from auto-locking while a ride is being tracked. Browsers
+  // release the lock automatically when the tab is hidden, so it's reacquired
+  // on visibilitychange if a ride is still active.
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      state.wakeLock = await navigator.wakeLock.request('screen');
+    } catch (e) {
+      state.wakeLock = null;
+    }
+  }
+
+  function releaseWakeLock() {
+    if (state.wakeLock) {
+      state.wakeLock.release().catch(() => {});
+      state.wakeLock = null;
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.tracking && !state.wakeLock) {
+      requestWakeLock();
+    }
+  });
 
   function onPosition(pos) {
     const { latitude, longitude, accuracy } = pos.coords;
@@ -159,6 +187,7 @@
       state.timerId = null;
     }
     state.tracking = false;
+    releaseWakeLock();
   }
 
   function endRide() {
